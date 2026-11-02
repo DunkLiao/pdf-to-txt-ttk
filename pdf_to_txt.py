@@ -5,6 +5,8 @@ from __future__ import annotations
 import hashlib
 import os
 import queue
+import argparse
+import sys
 import tempfile
 import threading
 import tkinter as tk
@@ -46,6 +48,42 @@ class ConversionResult:
     total_pages: int
     empty_pages: tuple[int, ...]
     encoding: str
+
+
+def cli_main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        description="擷取 PDF 文字並儲存為 TXT。",
+        usage="PdfToTxtCli.exe <PDF路徑> <文字檔路徑>",
+    )
+    parser.add_argument("pdf_path", help="來源 PDF 檔案路徑")
+    parser.add_argument("text_path", help="輸出 TXT 檔案路徑")
+    args = parser.parse_args(argv)
+    source = Path(args.pdf_path)
+    destination = Path(args.text_path)
+
+    try:
+        snapshot = capture_destination(destination)
+        if snapshot is not None:
+            try:
+                answer = input(f"目的檔已存在：{destination}\n確定覆寫嗎？[y/N] ").strip().lower()
+            except EOFError:
+                answer = ""
+            if answer not in ("y", "yes"):
+                print("已取消，未修改目的檔。", file=sys.stderr)
+                return 1
+
+        result = convert_pdf(source, destination, "auto", lambda *_: None, snapshot)
+    except ConversionError as exc:
+        print(f"轉換失敗：{exc}", file=sys.stderr)
+        return 1
+
+    encoding_name = next(name for name, codec in ENCODINGS.items() if codec == result.encoding)
+    print(f"轉換完成，共 {result.total_pages} 頁。")
+    print(f"輸出：{destination}")
+    print(f"輸出編碼：{encoding_name}")
+    if result.empty_pages:
+        print(f"注意：未擷取到文字的頁面：{', '.join(map(str, result.empty_pages))}")
+    return 0
 
 
 def capture_destination(path: Path) -> DestinationSnapshot | None:
@@ -297,7 +335,9 @@ class PdfToTxtApp:
             self.root.destroy()
 
 
-def main() -> None:
+def main() -> int:
+    if len(sys.argv) > 1:
+        return cli_main()
     root = tk.Tk()
     icon_path = Path(__file__).resolve().parent / "assets" / "shortcut_icon.ico"
     if icon_path.is_file():
@@ -307,7 +347,8 @@ def main() -> None:
             pass
     PdfToTxtApp(root)
     root.mainloop()
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

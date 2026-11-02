@@ -60,8 +60,28 @@ if not exist "dist\PdfToTxt.exe" (
     goto failed
 )
 
+echo Building portable command-line application...
+call "%BUILD_PY%" -m PyInstaller ^
+    --noconfirm ^
+    --clean ^
+    --onefile ^
+    --console ^
+    --name "PdfToTxtCli" ^
+    --distpath "dist" ^
+    --workpath "build" ^
+    --specpath "build" ^
+    "pdf_to_txt_cli.py"
+if errorlevel 1 goto failed
+
+if not exist "dist\PdfToTxtCli.exe" (
+    echo Build finished without the expected command-line executable.
+    goto failed
+)
+
 echo.
-echo Build complete: %CD%\dist\PdfToTxt.exe
+echo Build complete:
+echo   GUI: %CD%\dist\PdfToTxt.exe
+echo   CLI: %CD%\dist\PdfToTxtCli.exe
 popd
 exit /b 0
 

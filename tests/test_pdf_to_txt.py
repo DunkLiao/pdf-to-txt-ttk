@@ -1,13 +1,15 @@
+import io
 import tempfile
 import time
 import unittest
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 
 import pymupdf
 import tkinter as tk
 
-from pdf_to_txt import ConversionError, PdfToTxtApp, capture_destination, convert_pdf
+from pdf_to_txt import ConversionError, PdfToTxtApp, capture_destination, cli_main, convert_pdf
 
 
 class ConversionTests(unittest.TestCase):
@@ -26,6 +28,38 @@ class ConversionTests(unittest.TestCase):
                 page.insert_htmlbox(page.rect, f"<p>{text}</p>")
         document.save(self.source)
         document.close()
+
+    def test_cli_converts_pdf_and_reports_result(self):
+        self.make_pdf(["第一頁", "第二頁"])
+        output = io.StringIO()
+
+        with redirect_stdout(output):
+            exit_code = cli_main([str(self.source), str(self.destination)])
+
+        self.assertEqual(exit_code, 0)
+        self.assertIn("轉換完成，共 2 頁", output.getvalue())
+        self.assertIn(str(self.destination), output.getvalue())
+        self.assertIn("第一頁", self.destination.read_bytes().decode("cp950"))
+
+    def test_cli_rejects_invalid_argument_count(self):
+        with redirect_stderr(io.StringIO()):
+            with self.assertRaises(SystemExit) as raised:
+                cli_main([str(self.source)])
+
+        self.assertEqual(raised.exception.code, 2)
+
+    def test_cli_requires_confirmation_before_overwriting(self):
+        self.make_pdf(["新內容"])
+        self.destination.write_bytes(b"old")
+        output = io.StringIO()
+        errors = io.StringIO()
+
+        with patch("builtins.input", return_value="n"), redirect_stdout(output), redirect_stderr(errors):
+            exit_code = cli_main([str(self.source), str(self.destination)])
+
+        self.assertEqual(exit_code, 1)
+        self.assertEqual(self.destination.read_bytes(), b"old")
+        self.assertIn("已取消", errors.getvalue())
 
     def test_multipage_chinese_crlf_and_blank_page_warning(self):
         self.make_pdf(["繁體中文 123", "", "第二頁 英文 ABC"])

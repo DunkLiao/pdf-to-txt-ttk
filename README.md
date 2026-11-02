@@ -21,6 +21,14 @@
 
 取得 `dist\PdfToTxt.exe` 後，在 Windows 10／11 上雙擊即可開啟，不需要另外安裝 Python。首次啟動單檔程式時，Windows 可能需要數秒解開執行所需檔案。
 
+命令列免安裝版為 `dist\PdfToTxtCli.exe`，在 PowerShell 或命令提示字元中指定 PDF 與 TXT 路徑：
+
+```powershell
+.\dist\PdfToTxtCli.exe "C:\文件\來源.pdf" "C:\文件\輸出.txt"
+```
+
+若輸出檔已存在，程式會詢問是否覆寫；輸入 `y` 或 `yes` 確認，其他回答會取消並保留原檔。轉換成功時回傳結束碼 `0`；參數格式錯誤回傳 `2`，取消或轉換失敗回傳非零結束碼。命令列版使用自動編碼（優先 CP950，必要時 UTF-8）。
+
 ### 從原始碼啟動
 
 需要 Python 3.11 以上，安裝時須包含 tkinter。在專案資料夾雙擊 `start_pdf_to_txt.bat`；批次檔會尋找 Python 3.11 以上版本，並以英文顯示啟動錯誤。
@@ -30,6 +38,7 @@
 ```powershell
 python -m pip install -r requirements.txt
 python pdf_to_txt.py
+python pdf_to_txt.py "C:\文件\來源.pdf" "C:\文件\輸出.txt"
 ```
 
 ## 整體使用流程
@@ -134,14 +143,14 @@ PDF 通常沒有可供工具判定的單一 CP950、Big5 或 UTF-8 編碼。工�
 
 1. 建立專用的 `.venv-build` 虛擬環境。
 2. 安裝 `requirements-build.txt` 指定的 PyMuPDF 和 PyInstaller。
-3. 以單檔、無主控台的方式編譯程式並套用圖示。
-4. 將產物輸出至 `dist\PdfToTxt.exe`。
+3. 編譯 GUI 免安裝版 `dist\PdfToTxt.exe`，採單檔、無主控台並內嵌圖示。
+4. 編譯命令列免安裝版 `dist\PdfToTxtCli.exe`，採單檔並保留主控台輸出。
 
 首次建置需要網路下載相依套件。完成後，EXE 可複製到其他 Windows 電腦使用，無須安裝 Python。對外或商業發佈前，請確認 PyMuPDF 的 AGPL／商業授權條件符合用途。
 
 ## 維護者驗證
 
-在專案資料夾執行核心與 GUI 測試：
+在專案資料夾執行核心、GUI 與 CLI 測試：
 
 ```powershell
 python -m unittest discover -s tests -v
@@ -150,5 +159,5 @@ python -m unittest discover -s tests -v
 檢查 Python 語法：
 
 ```powershell
-python -m py_compile pdf_to_txt.py tests\test_pdf_to_txt.py
+python -m py_compile pdf_to_txt.py pdf_to_txt_cli.py tests\test_pdf_to_txt.py
 ```

@@ -1,12 +1,12 @@
 # 中文電子 PDF 轉 TXT 工具規格
 
-- 版本：1.2
+- 版本：1.3
 - 日期：2026-11-02
 - 目標平台：Windows 10 / 11（繁體中文環境）
 
 ## 1. 目的與範圍
 
-建立 Python 桌面工具，以 tkinter.ttk 圖形介面讓使用者指定一個來源 PDF，以及一個目的 TXT 檔案路徑，擷取 PDF 既有文字層並依自動或手動指定的輸出編碼儲存。
+建立 Python PDF 轉 TXT 工具，提供 tkinter.ttk 圖形介面與命令列介面。兩種介面皆擷取 PDF 既有文字層並儲存至指定 TXT；GUI 可選自動或手動輸出編碼，CLI 使用自動編碼。
 
 來源為可選取、複製中文且貼上正常的電子 PDF。所有處理皆在本機完成，不上傳文件，不使用 OCR 或大型語言模型。
 
@@ -14,12 +14,22 @@
 
 ## 2. 使用流程
 
-1. 開啟工具。
+1. 開啟 GUI。
 2. 手動輸入來源 PDF 完整路徑，或透過「瀏覽…」選取。
 3. 手動輸入目的 TXT 完整路徑，或透過「另存為…」指定。
 4. 輸出編碼預設「自動（優先 CP950，必要時 UTF-8）」；亦可手動指定編碼。
 5. 按下「開始轉換」。若目的檔已存在，確認是否覆寫。
 6. 顯示處理進度，完成後顯示總頁數、輸出路徑、實際輸出編碼與必要警告。
+
+### 命令列介面
+
+```powershell
+PdfToTxtCli.exe "來源.pdf" "輸出.txt"
+```
+
+第一個位置參數是來源 PDF，第二個位置參數是目的 TXT。使用原始碼時可執行 `python pdf_to_txt.py "來源.pdf" "輸出.txt"`；不帶參數執行 `pdf_to_txt.py` 會開啟 GUI。CLI 參數缺漏或多於兩個時顯示用法並以結束碼 2 結束。
+
+CLI 使用自動編碼（優先 CP950，必要時無 BOM UTF-8），輸出總頁數、目的路徑、實際編碼及空白頁警告。目的檔已存在時提示輸入 `y` 或 `yes` 才覆寫；其他回答或無法讀取輸入時取消並保留原檔。轉換成功回傳結束碼 0；取消或轉換失敗回傳非零結束碼。
 
 ## 3. 圖形介面
 
@@ -98,13 +108,14 @@ PDF 文字層不一定有單一、可辨識的 CP950／Big5／UTF-8 編碼。「
 | 路徑與安全輸出 | pathlib、tempfile、os |
 | 編碼 | Python 內建 codecs |
 
-交付檔案：pdf_to_txt.py、requirements.txt、requirements-build.txt、README.md、build_portable.bat、assets/shortcut_icon.ico，以及建置後的 dist/PdfToTxt.exe。README 說明原始碼安裝、執行、編碼選擇、免安裝檔建置與已知限制。免安裝檔使用 PyInstaller 建立 Windows 單檔 GUI 執行檔，內嵌捷徑圖示，並將視窗所需 ICO 資源打包進 EXE。
+交付檔案：pdf_to_txt.py、pdf_to_txt_cli.py、requirements.txt、requirements-build.txt、README.md、build_portable.bat、assets/shortcut_icon.ico，以及建置產物 dist/PdfToTxt.exe（GUI）與 dist/PdfToTxtCli.exe（CLI）。README 說明 GUI 與 CLI 原始碼使用方式、編碼、免安裝檔建置與已知限制。兩個版本均由 PyInstaller 建立 Windows 單檔免安裝程式；GUI 版無主控台並內嵌視窗 ICO，CLI 版保留主控台輸出。
 
 安裝及執行範例：
 
 ```powershell
 py -m pip install -r requirements.txt
 py pdf_to_txt.py
+py pdf_to_txt.py "來源.pdf" "輸出.txt"
 ```
 
 程式將轉換邏輯與 GUI 分離，核心函式接受來源路徑、目的路徑、編碼及進度回呼，方便測試與後續擴充。發佈前確認相依套件授權符合預計用途。
@@ -128,5 +139,10 @@ py pdf_to_txt.py
 | A13 | 任一階段發生編碼或寫入錯誤 | 清除暫存檔，保留既有目的檔，恢復介面控制項 |
 | A14 | 換行與頁面分隔 | CRLF 正確、無重複 CR，頁間有空白行 |
 | A15 | 自動模式且後續頁含 CP950 無法表示的字元 | 全文以無 BOM UTF-8 輸出、字元完整，完成訊息顯示 UTF-8 |
+| A16 | CLI 提供兩個有效路徑 | 使用自動編碼完成轉換，顯示頁數、輸出路徑與實際編碼，回傳 0 |
+| A17 | CLI 參數缺漏或多於兩個 | 顯示使用方式並回傳 2，不建立或修改目的檔 |
+| A18 | CLI 目的檔已存在並拒絕覆寫 | 取消轉換，原檔不變，回傳非零狀態 |
+| A19 | CLI 來源或目的路徑錯誤、PDF 損毀或需密碼 | 顯示錯誤並回傳非零狀態，不留下不完整輸出 |
+| A20 | 執行免安裝建置流程 | 同時產生 GUI `PdfToTxt.exe` 與主控台 CLI `PdfToTxtCli.exe` |
 
 驗證應包含實際繁體中文 PDF 的擷取與各編碼位元組檢查；GUI 另在 Windows 環境實際操作驗收。
